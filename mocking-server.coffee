@@ -1,5 +1,6 @@
 fs = require 'fs'
 url = require 'url'
+http = require 'http'
 https = require 'https'
 _ = require 'underscore'
 {clone, timeoutSet, dictionaries_equal, pretty_json_stringify, match_glob} = require './util'
@@ -114,6 +115,16 @@ class MockingServer
       req_headers: headers
     }
     @httpLogger.respond req, res, 503, {'Content-Type': 'text/plain'}, 'Request did not match any expectation'
+
+  httpListen: ({key_path, cert_path, port, name}, callback=(->)) ->
+    server = http.createServer ((req, res) => @handleRequest req, res)
+    server.listen port, () =>
+      # TODO handle error from .listen
+      msg = "Listening on #{port}..."
+      if name
+        msg = "[#{name}] #{msg}"
+      console.log msg
+      callback null
 
   httpsListen: ({key_path, cert_path, port, name}, callback=(->)) ->
 
