@@ -10,7 +10,7 @@ mocking_server = {
     if (
           (info.unmet_expectations.length == 0) &&
           (info.unexpected_requests.length == 0)) {
-    
+        opt.success && opt.success(info);
     }
     else {
       if (opt.error) {
