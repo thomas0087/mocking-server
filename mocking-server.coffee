@@ -1,10 +1,12 @@
 fs = require 'fs'
 url = require 'url'
+log4js = require('log4js');
 http = require 'http'
 https = require 'https'
 _ = require 'underscore'
 {clone, timeoutSet, dictionaries_equal, pretty_json_stringify, match_glob} = require './util'
 
+logger = log4js.getLogger();
 
 parse_url = (s) ->
   {protocol, hostname, path} = url.parse s
@@ -52,13 +54,16 @@ class MockingServer
     @unexpected_requests = []
     @requests = []
 
+  setLoggingLevel: (level) ->
+    logger.setLevel(level);
+
   handleRequest: (req, res) ->
     @httpLogger.requestText req, (req_text) =>
       if req.headers['x-mocking-server'] == 'API'
-        console.log 'API request:', req.url
+        logger.debug 'API request:', req.url
         @_handleApiRequest req, res, req_text
       else
-        console.log req.method, req.url
+        logger.info req.method, req.url
         @requests.push {
           text: req_text
           url: req.url
@@ -70,14 +75,14 @@ class MockingServer
             @expectations = _.without @expectations, expectation
             @_handleExpectedResult req, res, req_text, expectation
             return
-        console.warn 'No expectations matches request'
+        logger.warn 'No expectations matches request'
         @_handleUnexpectedResult req, res, req_text
 
   _handleApiRequest: (req, res, req_text) ->
     if req.url == '/mock'
       parsed = JSON.parse req_text
       @expectations.push parsed
-      console.log 'Added expectation:', parsed.url
+      logger.debug 'Added expectation:', parsed.url
       @httpLogger.respond req, res, 200, {}, JSON.stringify {}
     else if req.url == '/clear-expectations'
       unmet_expectations = @expectations
@@ -128,7 +133,7 @@ class MockingServer
       msg = "Listening on #{port}..."
       if name
         msg = "[#{name}] #{msg}"
-      console.log msg
+      logger.info msg
       callback null
 
   httpsListen: ({key_path, cert_path, port, name}, callback=(->)) ->
@@ -145,7 +150,7 @@ class MockingServer
           msg = "Listening on #{port}..."
           if name
             msg = "[#{name}] #{msg}"
-          console.log msg
+          logger.info msg
           callback null
 
 

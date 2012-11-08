@@ -7,6 +7,7 @@ describe 'MockingServer', ->
   describe 'expectations', ->
     beforeEach ->
       @server = new MockingServer
+      @server.setLoggingLevel('OFF')
       @http_server = http.createServer ((req, res) => @server.handleRequest req, res)
 
     it 'should match method', (done) ->
