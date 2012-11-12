@@ -109,6 +109,7 @@ class MockingServer
         unexpected_requests
         message: pretty_json_stringify {unmet_expectations, unexpected_requests}
       }
+      @unexpected_requests = []
       @expectations = []
     else if req.url.match /^\/last-request-matching/
       expectation = JSON.parse req_text
