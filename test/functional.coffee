@@ -48,6 +48,53 @@ describe 'MockingServer', ->
         .send('another_body')
         .expect(503, done)
 
+    describe 'req_post_params', ->
+      it 'should match application/x-www-form-urlencoded', (done) ->
+        @server.expectations = [{req_post_params: {foo: 'bar', baz: 'qux'}}]
+        request(@http_server)
+          .post('/foobar')
+          .send('foo=bar')
+          .send('baz=qux')
+          .expect(200, done)
+
+      it 'should unmatch application/x-www-form-urlencoded', (done) ->
+        @server.expectations = [{req_post_params: {foo: 'bar', baz: 'qux'}}]
+        request(@http_server)
+          .post('/foobar')
+          .send('foo=bar')
+          .send('baz=another qux')
+          .expect(503, done)
+
+      it 'should match multipart/form-data', (done) ->
+        @server.expectations = [{req_post_params: {foo: 'bar', baz: 'qux'}}]
+        req = request(@http_server)
+          .post('/foobar')
+        req
+          .part()
+          .set('Content-Disposition', 'form-data; name="foo"')
+          .write('bar')
+        req
+          .part()
+          .set('Content-Disposition', 'form-data; name="baz"')
+          .write('qux')
+        req
+          .expect(200, done)
+
+      it 'should unmatch multipart/form-data', (done) ->
+        @server.expectations = [{req_post_params: {foo: 'bar', baz: 'qux'}}]
+        req = request(@http_server)
+          .post('/foobar')
+        req
+          .part()
+          .set('Content-Disposition', 'form-data; name="foo"')
+          .write('bar')
+        req
+          .part()
+          .set('Content-Disposition', 'form-data; name="baz"')
+          .write('another qux')
+        req
+          .expect(503, done)
+
     it 'should match request headers', (done) ->
       @server.expectations = []
       test = request(@http_server)

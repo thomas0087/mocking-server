@@ -1,3 +1,4 @@
+formidable = require('formidable')
 fs = require 'fs'
 url = require 'url'
 log4js = require('log4js');
@@ -23,7 +24,7 @@ parse_url = (s) ->
   {hostname, path}
 
 
-matches_expectation = (req, req_text, expectation) ->
+matches_expectation = (req, fields, files, req_text, expectation) ->
   e = expectation
 
   if e.method
@@ -33,6 +34,9 @@ matches_expectation = (req, req_text, expectation) ->
     {hostname, path} = parse_url e.url
     return false if hostname and hostname != req.headers.host
     return false if path and path != req.url
+
+  if e.req_post_params
+    return false if not dictionaries_equal fields, e.req_post_params
 
   if e.req_body
     return false if e.req_body != req_text
@@ -58,25 +62,38 @@ class MockingServer
     logger.setLevel(level);
 
   handleRequest: (req, res) ->
-    @httpLogger.requestText req, (req_text) =>
-      if req.headers['x-mocking-server'] == 'API'
-        logger.debug 'API request:', req.url
-        @_handleApiRequest req, res, req_text
-      else
-        logger.info req.method, req.url
-        @requests.push {
-          text: req_text
-          url: req.url
-          headers: req.headers
-          method: req.method
-        }
-        for expectation, i in @expectations
-          if matches_expectation req, req_text, expectation
-            @expectations = _.without @expectations, expectation
-            @_handleExpectedResult req, res, req_text, expectation
-            return
-        logger.warn 'No expectations matches request'
-        @_handleUnexpectedResult req, res, req_text
+    if req.method == 'POST' || req.method == 'PUT'
+      @httpLogger.requestText req
+      form = new formidable.IncomingForm()
+      form.on 'error', (e) =>
+        @_handleParsedRequest req, res, null, null
+      form.parse req, (err, fields, files) =>
+        @_handleParsedRequest req, res, fields, files
+    else
+      @httpLogger.requestText req, (req_text) =>
+        @_handleParsedRequest req, res, null, null
+
+  _handleParsedRequest: (req, res, fields, files) ->
+    fields = fields || {}
+    if req.headers['x-mocking-server'] == 'API'
+      logger.debug 'API request:', req.url
+      @_handleApiRequest req, res, req.body
+    else
+      logger.info req.method, req.url
+      @requests.push {
+        post_data: fields
+        text: req.body
+        url: req.url
+        headers: req.headers
+        method: req.method
+      }
+      for expectation, i in @expectations
+        if matches_expectation req, fields, files, req.body, expectation
+          @expectations = _.without @expectations, expectation
+          @_handleExpectedResult req, res, req.body, expectation
+          return
+      logger.warn 'No expectations matches request'
+      @_handleUnexpectedResult req, res, req.body
 
   _handleApiRequest: (req, res, req_text) ->
     if req.url == '/mock'
@@ -167,7 +184,8 @@ class HTTPLogger
     req.on 'data', (data) =>
       arr.push data.toString 'utf-8'
     req.on 'end', () =>
-      callback arr.join ''
+      req.body = arr.join ''
+      callback && callback req
 
 
 module.exports = {MockingServer}
