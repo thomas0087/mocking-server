@@ -5,9 +5,10 @@
 
     server = new MockingServer
     server.httpsListen {
-      key: fs.readFileSync "#{__dirname}/ssl/foo.com.key"
-      cert: fs.readFileSync "#{__dirname}/ssl/foo.com.cert"
+      key: "#{__dirname}/ssl/foo.com.key"
+      cert: "#{__dirname}/ssl/foo.com.cert"
       port: 12001
+      name: "foo"
     }, (e) ->
 
 You can `httpsListen` multiple `(key, cert, port)` triples at once.
